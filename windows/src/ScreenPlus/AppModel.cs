@@ -68,6 +68,7 @@ internal sealed class AppModel : INotifyPropertyChanged
             Changed();
             foreach (var name in SettingNames) Changed(name);
             Player?.SetSounds(value.ClickSounds, value.KeyboardSounds);
+            Player?.SetSpeed(value.Speed);
             SchedulePreviewUpdate();
         }
     } = new();
@@ -106,7 +107,8 @@ internal sealed class AppModel : INotifyPropertyChanged
     [
         nameof(ZoomLevel), nameof(IdleTimeout), nameof(ClicksOnly), nameof(CursorScale), nameof(CursorSmoothing),
         nameof(Padding), nameof(MotionBlur), nameof(ClickSounds), nameof(KeyboardSounds), nameof(BackgroundBlur),
-        nameof(BackgroundImagePath), nameof(HasBackgroundImage), nameof(GradientIndex),
+        nameof(BackgroundImagePath), nameof(HasBackgroundImage), nameof(GradientIndex), nameof(SpeedIndex),
+        nameof(OutputLengthText),
     ];
 
     public double ZoomLevel { get => Settings.ZoomLevel; set => Settings = Settings with { ZoomLevel = value }; }
@@ -119,6 +121,35 @@ internal sealed class AppModel : INotifyPropertyChanged
     public bool ClickSounds { get => Settings.ClickSounds; set => Settings = Settings with { ClickSounds = value }; }
     public bool KeyboardSounds { get => Settings.KeyboardSounds; set => Settings = Settings with { KeyboardSounds = value }; }
     public double BackgroundBlur { get => Settings.BackgroundBlur; set => Settings = Settings with { BackgroundBlur = value }; }
+    /// <summary>The speed as an index into <see cref="SpeedChoices"/>, for the picker.</summary>
+    public int SpeedIndex
+    {
+        get
+        {
+            var choices = RenderSettings.SpeedChoices;
+            var best = 0;
+            for (var i = 1; i < choices.Count; i++)
+                if (Math.Abs(Math.Log(choices[i] / Settings.Speed)) < Math.Abs(Math.Log(choices[best] / Settings.Speed))) best = i;
+            return best;
+        }
+        set
+        {
+            if (value >= 0 && value < RenderSettings.SpeedChoices.Count)
+                Settings = Settings with { Speed = RenderSettings.SpeedChoices[value] };
+        }
+    }
+
+    public static IReadOnlyList<string> SpeedChoices { get; } = RenderSettings.SpeedChoices.Select(RenderSettings.DescribeSpeed).ToList();
+
+    /// <summary>How long the exported video will be at the chosen speed.</summary>
+    public string OutputLengthText => Session == null ? "" : $"Exported video: {FormatTime(Duration / Settings.Speed)}";
+
+    private static string FormatTime(double seconds)
+    {
+        var s = Math.Max(0, (int)Math.Round(seconds));
+        return $"{s / 60}:{s % 60:00}";
+    }
+
     public string? BackgroundImagePath => (Settings.Background as ImageBackground)?.Path;
     public bool HasBackgroundImage => Settings.Background is ImageBackground;
     public int GradientIndex => Settings.Background is GradientBackground g ? g.Index : -1;
@@ -303,7 +334,9 @@ internal sealed class AppModel : INotifyPropertyChanged
         player.FrameReady += OnFrameReady;
         player.PlayingChanged += playing => _dispatcher.BeginInvoke(() => IsPlaying = playing);
         player.SetSounds(Settings.ClickSounds, Settings.KeyboardSounds);
+        player.SetSpeed(Settings.Speed);
         Player = player;
+        Changed(nameof(OutputLengthText));
         await UpdatePreview();
         Phase = Phase.Editing;
         player.Play();

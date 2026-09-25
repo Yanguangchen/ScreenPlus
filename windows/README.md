@@ -36,6 +36,9 @@ icon's menu) opens the editor. The toolbar never appears in recordings.
 
 Recordings are saved to `Videos\ScreenPlus\`. The editor shows a **live preview**: changing a setting
 updates it immediately, and nothing is rendered to a file until you click **Export MP4…** (Ctrl+E).
+**Speed** plays the video up to 10× faster (2×, 4×, 6×, 8×, 10×) or up to 10× slower. The preview plays
+at that speed, the sidebar shows how long the exported video will be, and click and keyboard sounds
+stay at their normal pitch, landing wherever their moment falls in the sped-up or slowed-down video.
 **Open…** (Ctrl+O) reopens an earlier recording. Recordings made with the Mac app open too, as long as
 Windows can decode their video (HEVC needs the HEVC Video Extensions from the Microsoft Store).
 
@@ -58,6 +61,7 @@ privacy indicator and isn't part of the recording.
 
 ```powershell
 ScreenPlus.exe --render "$env:USERPROFILE\Videos\ScreenPlus\<Recording>\events.json" out.mp4
+ScreenPlus.exe --render "$env:USERPROFILE\Videos\ScreenPlus\<Recording>\events.json" fast.mp4 4    # 4× speed
 ScreenPlus.exe --preview-frame "$env:USERPROFILE\Videos\ScreenPlus\<Recording>\events.json" 2.5 frame.png
 ```
 

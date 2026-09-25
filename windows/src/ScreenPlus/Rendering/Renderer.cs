@@ -42,7 +42,9 @@ internal sealed unsafe class Renderer(RecordingSession session, RenderSettings s
             var hits = new List<InputSounds.Hit>();
             if (settings.ClickSounds) hits.AddRange(InputSounds.ClickHits(session));
             if (settings.KeyboardSounds) hits.AddRange(InputSounds.KeyHits(session));
-            var sounds = new SoundTrack(hits, duration);
+            // Sounds go where their moment lands in the sped-up (or slowed-down) video.
+            var outputDuration = duration / settings.Speed;
+            var sounds = new SoundTrack(InputSounds.AtSpeed(hits, settings.Speed), outputDuration);
 
             // Write next to the destination and move into place at the end, so a cancelled or failed
             // export never leaves a broken file behind.
@@ -55,7 +57,7 @@ internal sealed unsafe class Renderer(RecordingSession session, RenderSettings s
                            preferHardware))
                 {
                     _usedHardware = writer.UsesHardware;
-                    RenderFrames(composer, source, writer, sounds, duration, fps, progress, cancellation);
+                    RenderFrames(composer, source, writer, sounds, outputDuration, settings.Speed, fps, progress, cancellation);
                     writer.Finish();
                 }
                 File.Move(temporary, outputPath, overwrite: true);
@@ -81,8 +83,10 @@ internal sealed unsafe class Renderer(RecordingSession session, RenderSettings s
         return new FrameComposer(session, settings, cursor, duration, width);
     }
 
+    /// <summary>Renders <paramref name="duration"/> seconds of output; output frame n shows recording time n / fps × speed.</summary>
     private static void RenderFrames(FrameComposer composer, SourceFrames source, Mp4Writer writer, SoundTrack sounds,
-                                     double duration, int fps, Action<double>? progress, CancellationToken cancellation)
+                                     double duration, double speed, int fps, Action<double>? progress,
+                                     CancellationToken cancellation)
     {
         var frameCount = Math.Max(1, (int)(duration * fps));
         // Frames are independent once decoded, so render a batch at a time on all cores.
@@ -101,12 +105,12 @@ internal sealed unsafe class Renderer(RecordingSession session, RenderSettings s
                 cancellation.ThrowIfCancellationRequested();
                 var count = Math.Min(workers, frameCount - batch);
                 for (var i = 0; i < count; i++)
-                    frames[i] = source.At((double)(batch + i) / fps)?.AddRef();
+                    frames[i] = source.At((double)(batch + i) / fps * speed)?.AddRef();
                 if (frames[0] == null) break;  // no picture at all
 
                 Parallel.For(0, count, new ParallelOptions { CancellationToken = cancellation }, i =>
                 {
-                    var t = (double)(batch + i) / fps;
+                    var t = (double)(batch + i) / fps * speed;
                     composer.Render(frames[i] ?? frames[0]!, t, bgra[i], stride, scratch[i]);
                     var y = (byte*)nv12[i];
                     Yuv.BgraToNv12((byte*)bgra[i], stride, composer.Width, composer.Height, y, composer.Width,

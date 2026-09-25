@@ -74,6 +74,33 @@ public unsafe class MediaTests(ITestOutputHelper output)
         Assert.True(HasAudioTrack(outputPath), "expected an AAC track with the click and key sounds");
     }
 
+    [Theory]
+    [InlineData(4.0)]
+    [InlineData(0.5)]
+    public void ExportsFasterOrSlower(double speed)
+    {
+        var folder = SyntheticRecording.Create();
+        var session = RecordingSession.Load(Path.Combine(folder, "events.json"));
+        var outputPath = Path.Combine(folder, $"speed-{speed}.mp4");
+        using var cursor = CursorArt.CreateDefault();
+
+        new Renderer(session, new RenderSettings { OutputWidth = 640, Speed = speed }, cursor)
+            .Render(outputPath, null, CancellationToken.None);
+
+        using var reader = new Mp4Reader(outputPath);
+        var expected = SyntheticRecording.Duration / speed;
+        var frames = 0;
+        while (reader.Read() is { } frame)
+        {
+            frame.Release();
+            frames++;
+        }
+        output.WriteLine($"{speed}×: {reader.Duration:F3}s, {frames} frames");
+        Assert.InRange(reader.Duration, expected - 0.1, expected + 0.1);
+        Assert.InRange(frames, (int)(expected * 60) - 2, (int)(expected * 60) + 1);  // still 60 fps
+        Assert.True(HasAudioTrack(outputPath));
+    }
+
     [Fact]
     public void ExportWithoutSoundsHasNoAudioTrack()
     {

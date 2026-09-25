@@ -26,6 +26,13 @@ public static class InputSounds
             _ => RegularKeys[(index * 7 + 3) % RegularKeys.Length],
         })).ToList();
 
+    /// <summary>
+    /// Moves hits onto the output timeline of a sped-up or slowed-down video. The sounds themselves keep
+    /// their length and pitch: a click still sounds like a click.
+    /// </summary>
+    public static List<Hit> AtSpeed(IEnumerable<Hit> hits, double speed) =>
+        hits.Select(h => h with { Time = h.Time / speed }).ToList();
+
     // MARK: Sounds
 
     /// <summary>Sharp press "snap" followed by a softer release, like a real mouse button.</summary>

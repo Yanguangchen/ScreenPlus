@@ -87,7 +87,8 @@ public sealed unsafe class FrameComposer : IDisposable
 
         // Motion blur = average several sub-frames across the shutter interval.
         // The number of sub-frames adapts to how far things move, so still frames stay cheap.
-        var shutter = 1.0 / _settings.Fps;
+        // One output frame's worth of recording time: sped-up video blurs more, slow motion less.
+        var shutter = _settings.Speed / _settings.Fps;
         var a = Path.StateAt(t - shutter / 2);
         var b = Path.StateAt(t + shutter / 2);
         var (camera, cursor) = MotionInPixels(a, b);

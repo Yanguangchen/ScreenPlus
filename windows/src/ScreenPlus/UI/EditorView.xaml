@@ -103,6 +103,13 @@
                     </StackPanel>
 
                     <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Style="{StaticResource SectionHeader}" Text="SPEED" />
+                        <ComboBox x:Name="SpeedPicker" HorizontalAlignment="Stretch" ItemsSource="{Binding Source={x:Static ui:SpeedChoicesSource.Items}}"
+                                  SelectedIndex="{Binding SpeedIndex}" ToolTip="Play the exported video faster or slower" />
+                        <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" Text="{Binding OutputLengthText}" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource Section}">
                         <TextBlock Style="{StaticResource SectionHeader}" Text="CURSOR" />
                         <Grid Style="{StaticResource SettingRow}">
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>

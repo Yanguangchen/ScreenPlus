@@ -78,6 +78,9 @@ public class UiTests(ITestOutputHelper output)
         model.ZoomLevel = 3;
         model.Padding = 0.1;
         model.SelectGradient(3);
+        model.SpeedIndex = RenderSettings.SpeedChoices.ToList().IndexOf(2);
+        Assert.Equal(2, model.Settings.Speed);
+        Assert.Equal("Exported video: 0:02", model.OutputLengthText);
         Pump(1.0);
         Save(main, "ui-editor-settings.png");
 

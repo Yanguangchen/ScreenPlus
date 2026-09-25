@@ -28,7 +28,9 @@ internal sealed unsafe class PreviewPlayer : IDisposable
 
     // Owned by the render thread.
     private DecodeAhead? _decoder;
-    private SoundTrack? _clicks, _keys;
+    // Sound tracks on the output timeline for the current speed; swapped whole, read by the audio thread.
+    private volatile SoundTrack? _clicks, _keys;
+    private double _speed = 1;
     private AudioOutput? _audio;
     private long _lastIndex = -1;
     private VideoFrame? _lastFrame;
@@ -85,6 +87,27 @@ internal sealed unsafe class PreviewPlayer : IDisposable
             _dirty = true;
         }
         _wake.Set();
+    }
+
+    /// <summary>Plays the preview faster or slower, like the export will.</summary>
+    public void SetSpeed(double speed)
+    {
+        lock (_lock)
+        {
+            if (Math.Abs(speed - _speed) < 1e-9) return;
+            var position = _playing ? ClockLocked() : _position;
+            _speed = speed;
+            BuildSoundTracksLocked();
+            if (_playing) StartClockLocked(position);
+            _dirty = true;
+        }
+        _wake.Set();
+    }
+
+    private void BuildSoundTracksLocked()
+    {
+        _clicks = new SoundTrack(InputSounds.AtSpeed(InputSounds.ClickHits(_session), _speed), Duration / _speed);
+        _keys = new SoundTrack(InputSounds.AtSpeed(InputSounds.KeyHits(_session), _speed), Duration / _speed);
     }
 
     public void SetSounds(bool clicks, bool keys)
@@ -164,12 +187,13 @@ internal sealed unsafe class PreviewPlayer : IDisposable
         if (_audio != null)
         {
             _audio.Stop();
-            _audioSample = (long)(position * AudioOutput.SampleRate);
+            _audioSample = (long)(position / _speed * AudioOutput.SampleRate);
             _audio.Start(FillAudio);
         }
     }
 
     /// <summary>
+    /// Recording time now playing. It advances at the playback speed.
     /// With sound, the clock is what the speakers have actually played (smoothed between the driver's
     /// position updates), so clicks land exactly on screen. Without, it's the wall clock.
     /// </summary>
@@ -179,7 +203,7 @@ internal sealed unsafe class PreviewPlayer : IDisposable
         double clock;
         if (_audio == null)
         {
-            clock = _playStart + Stopwatch.GetElapsedTime(_playStartTicks, now).TotalSeconds;
+            clock = _playStart + Stopwatch.GetElapsedTime(_playStartTicks, now).TotalSeconds * _speed;
         }
         else
         {
@@ -190,7 +214,7 @@ internal sealed unsafe class PreviewPlayer : IDisposable
                 _lastAudioTicks = now;
             }
             var since = played > 0 ? Math.Min(0.05, Stopwatch.GetElapsedTime(_lastAudioTicks, now).TotalSeconds) : 0;
-            clock = _playStart + played + since;
+            clock = _playStart + (played + since) * _speed;
         }
         _lastClock = Math.Max(_lastClock, clock);
         return Math.Min(_lastClock, Duration);
@@ -221,8 +245,7 @@ internal sealed unsafe class PreviewPlayer : IDisposable
         {
             _decoder = new DecodeAhead(_session.VideoPath);
             Duration = _decoder.Duration;
-            _clicks = new SoundTrack(InputSounds.ClickHits(_session), Duration);
-            _keys = new SoundTrack(InputSounds.KeyHits(_session), Duration);
+            lock (_lock) BuildSoundTracksLocked();
             _audio = AudioOutput.TryCreate();
         }
         catch (Exception e)
@@ -238,6 +261,7 @@ internal sealed unsafe class PreviewPlayer : IDisposable
             double t;
             bool playing, dirty, ended = false;
             FrameComposer? composer;
+            double speed;
             lock (_lock)
             {
                 foreach (var old in _retired) old.Dispose();
@@ -254,18 +278,20 @@ internal sealed unsafe class PreviewPlayer : IDisposable
                     ended = true;
                 }
                 composer = _composer;
+                speed = _speed;
                 dirty = _dirty;
                 _dirty = false;
             }
             if (ended) PlayingChanged?.Invoke(false);
 
+            // Frames are paced on the output timeline, like the export: frame n shows recording time n / fps × speed.
             var fps = 60.0;
-            var index = (long)Math.Floor(t * fps + 1e-6);
+            var index = (long)Math.Floor(t / speed * fps + 1e-6);
             if (composer != null && (dirty || index != _lastIndex || composer != _lastComposer))
             {
                 try
                 {
-                    RenderFrame(composer, playing ? index / fps : t, playing);
+                    RenderFrame(composer, playing ? index / fps * speed : t, playing);
                     _lastIndex = index;
                     _lastComposer = composer;
                 }
@@ -277,7 +303,7 @@ internal sealed unsafe class PreviewPlayer : IDisposable
 
             if (playing)
             {
-                var untilNext = (index + 1) / fps - t;
+                var untilNext = (index + 1) / fps - t / speed;
                 _wake.WaitOne(TimeSpan.FromSeconds(Math.Clamp(untilNext, 0.001, 0.02)));
             }
             else

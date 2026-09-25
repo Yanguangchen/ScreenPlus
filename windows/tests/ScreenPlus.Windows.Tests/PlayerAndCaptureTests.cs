@@ -48,6 +48,17 @@ public unsafe class PlayerAndCaptureTests(ITestOutputHelper output)
         output.WriteLine($"played from 1.0 s for 0.7 s, now at {position:F3} s; {shown / 0.7:F0} frames/s on {Environment.ProcessorCount} cores");
         Assert.InRange(position, 1.3, 1.9);
 
+        // At 4× the recording plays four times as fast.
+        player.SetSpeed(4);
+        player.Seek(0.5);
+        player.Play();
+        Thread.Sleep(500);
+        var fast = player.Position;
+        player.Pause();
+        output.WriteLine($"at 4× for 0.5 s: from 0.5 s to {fast:F3} s");
+        Assert.InRange(fast, 2.0, 2.8);
+        player.SetSpeed(1);
+
         // Settings changes swap the composer while running.
         player.SetComposer(new FrameComposer(session, new RenderSettings { ZoomLevel = 3, Padding = 0 }, cursor, player.Duration, 1280, 6));
         Assert.True(frames.Wait(TimeSpan.FromSeconds(10)), "the preview didn't redraw with new settings");

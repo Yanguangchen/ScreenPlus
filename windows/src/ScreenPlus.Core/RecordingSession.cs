@@ -147,4 +147,25 @@ public sealed record RenderSettings
     public double BackgroundBlur { get; init; }
     public int OutputWidth { get; init; } = 1920;
     public int Fps { get; init; } = 60;
+
+    /// <summary>
+    /// Playback speed of the exported video: 2 plays twice as fast, 0.5 at half speed.
+    /// Times in the recording (and the editor's timeline) stay as recorded; output time = recording time / speed.
+    /// </summary>
+    public double Speed
+    {
+        get;
+        init => field = Math.Clamp(value, MinSpeed, MaxSpeed);
+    } = 1;
+
+    public const double MinSpeed = 0.1, MaxSpeed = 10;
+
+    /// <summary>The speeds the editor offers: up to 10× slower or faster.</summary>
+    public static readonly IReadOnlyList<double> SpeedChoices = [0.1, 0.125, 1.0 / 6, 0.25, 0.5, 1, 2, 4, 6, 8, 10];
+
+    /// <summary>"10× slower", "Normal", "4× faster"…</summary>
+    public static string DescribeSpeed(double speed) =>
+        Math.Abs(speed - 1) < 1e-6 ? "Normal speed"
+        : speed > 1 ? $"{speed:0.#}× faster"
+        : $"{1 / speed:0.#}× slower";
 }

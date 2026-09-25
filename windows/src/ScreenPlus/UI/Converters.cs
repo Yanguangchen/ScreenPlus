@@ -35,3 +35,9 @@ public sealed class ScaleConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         value is double d ? d / Factor : 0.0;
 }
+
+/// <summary>The speed picker's labels ("10× slower" … "10× faster"), for binding from XAML.</summary>
+public static class SpeedChoicesSource
+{
+    public static IReadOnlyList<string> Items => AppModel.SpeedChoices;
+}

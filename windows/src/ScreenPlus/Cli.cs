@@ -14,7 +14,7 @@ namespace ScreenPlus;
 /// <summary>
 /// Developer commands, like the Mac app's:
 /// <code>
-/// ScreenPlus --render &lt;events.json&gt; &lt;output.mp4&gt;
+/// ScreenPlus --render &lt;events.json&gt; &lt;output.mp4&gt; [speed]
 /// ScreenPlus --preview-frame &lt;events.json&gt; &lt;seconds&gt; &lt;output.png&gt;
 /// </code>
 /// </summary>
@@ -32,13 +32,17 @@ internal static class Cli
             switch (args)
             {
                 case ["--render", var events, var output]:
-                    return Render(events, output);
+                    return Render(events, output, 1);
+                case ["--render", var events, var output, var speedText]
+                    when double.TryParse(speedText.TrimEnd('x', 'X', '×'), NumberStyles.Float, CultureInfo.InvariantCulture, out var speed)
+                         && speed >= RenderSettings.MinSpeed && speed <= RenderSettings.MaxSpeed:
+                    return Render(events, output, speed);
                 case ["--preview-frame", var events, var time, var output]
                     when double.TryParse(time, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds):
                     return PreviewFrame(events, seconds, output);
                 default:
                     Console.WriteLine("Usage:");
-                    Console.WriteLine("  ScreenPlus --render <events.json> <output.mp4>");
+                    Console.WriteLine("  ScreenPlus --render <events.json> <output.mp4> [speed, 0.1 to 10]");
                     Console.WriteLine("  ScreenPlus --preview-frame <events.json> <seconds> <output.png>");
                     return args is ["--help"] ? 0 : 2;
             }
@@ -56,13 +60,13 @@ internal static class Cli
         return handle != HANDLE.NULL && handle != HANDLE.INVALID_VALUE && GetFileType(handle) is FILE_TYPE_DISK or FILE_TYPE_PIPE;
     }
 
-    private static int Render(string events, string output)
+    private static int Render(string events, string output, double speed)
     {
         var session = RecordingSession.Load(events);
         using var cursor = CursorArt.CreateDefault();
         var watch = Stopwatch.StartNew();
         var lastReport = -1;
-        new Renderer(session, new RenderSettings(), cursor).Render(Path.GetFullPath(output), progress =>
+        new Renderer(session, new RenderSettings { Speed = speed }, cursor).Render(Path.GetFullPath(output), progress =>
         {
             var percent = (int)(progress * 100);
             if (percent / 10 == lastReport / 10) return;
