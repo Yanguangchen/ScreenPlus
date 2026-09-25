@@ -103,7 +103,7 @@
                     <TextBlock FontFamily="{StaticResource IconFont}" FontSize="15" Text="&#xE7F4;" />
                     <TextBlock Text="Screen" FontSize="13" FontWeight="Medium" Margin="7,0,4,0" />
                 </StackPanel>
-                <Button Style="{StaticResource PillButton}" Click="OnRecord" ToolTip="Start recording after a 3-second countdown">
+                <Button x:Name="RecordButton" Style="{StaticResource PillButton}" Click="OnRecord" ToolTip="Start recording after a 3-second countdown">
                     <StackPanel Orientation="Horizontal">
                         <Ellipse Width="9" Height="9" Fill="White" VerticalAlignment="Center" />
                         <TextBlock Text="Record" Foreground="White" Margin="7,0,0,0" />
@@ -131,7 +131,7 @@
                 </StackPanel>
                 <Rectangle Style="{StaticResource Divider}" />
                 <Button Style="{StaticResource IconButton}" Content="&#xE74D;" ToolTip="Discard recording" Click="OnDiscard" />
-                <Button Style="{StaticResource PillButton}" Click="OnStop" ToolTip="Stop recording (Ctrl+Shift+R in ScreenPlus)">
+                <Button x:Name="StopButton" Style="{StaticResource PillButton}" Click="OnStop" ToolTip="Stop recording (Ctrl+Shift+R in ScreenPlus)">
                     <StackPanel Orientation="Horizontal">
                         <Rectangle Width="10" Height="10" RadiusX="2.5" RadiusY="2.5" Fill="White" VerticalAlignment="Center" />
                         <TextBlock Text="Stop" Foreground="White" Margin="7,0,0,0" />

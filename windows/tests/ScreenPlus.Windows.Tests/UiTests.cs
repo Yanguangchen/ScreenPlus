@@ -82,17 +82,72 @@ public class UiTests(ITestOutputHelper output)
         Save(main, "ui-editor-settings.png");
 
         app.ThemeMode = ThemeMode.Dark;
+        _dark = true;
         Pump(0.6);
         Save(main, "ui-editor-dark.png");
 
         model.Fail("Couldn't start recording: this is what an error looks like.");
         Pump(0.3);
         Save(main, "ui-failed.png");
+        model.Back();
+        app.ThemeMode = ThemeMode.Light;
+        _dark = false;
+
+        RecordThroughTheToolbar(model, main, toolbar);
 
         model.Shutdown();
         toolbar.Close();
         main.Close();
         output.WriteLine($"saved UI pictures to {SyntheticRecording.ArtifactDirectory}");
+    }
+
+    /// <summary>The whole flow a user goes through: Record, 3-2-1, record, Stop, edit.</summary>
+    private void RecordThroughTheToolbar(AppModel model, MainWindow main, ToolbarWindow toolbar)
+    {
+        if (!Capture.ScreenRecorder.IsSupported)
+        {
+            output.WriteLine("screen capture unsupported here; skipping the recording flow");
+            return;
+        }
+        using var tray = new TrayIcon(model);
+        model.Tray = tray;
+        var existing = Directory.Exists(AppModel.RecordingsRoot) ? Directory.GetDirectories(AppModel.RecordingsRoot).ToHashSet() : [];
+
+        model.ShowRecorder();
+        Pump(0.3);
+        Assert.False(main.IsVisible);
+        var record = (System.Windows.Controls.Button)toolbar.FindName("RecordButton");
+        record.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Pump(0.5);
+        Save(toolbar, "ui-toolbar-countdown.png");
+        PumpUntil(() => model.Phase is Phase.Recording or Phase.Failed, TimeSpan.FromSeconds(15));
+        if (model.Phase == Phase.Failed)
+        {
+            output.WriteLine($"recording couldn't start here: {model.FailureMessage}");
+            return;
+        }
+        Pump(1.5);
+        Save(toolbar, "ui-toolbar-recording.png");
+
+        var stop = (System.Windows.Controls.Button)toolbar.FindName("StopButton");
+        stop.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        PumpUntil(() => model.Phase is Phase.Editing or Phase.Failed, TimeSpan.FromSeconds(30));
+        Assert.True(model.Phase == Phase.Editing, $"after stopping: {model.Phase} {model.FailureMessage}");
+        Assert.True(main.IsVisible);
+        var session = model.Session!;
+        output.WriteLine($"recorded {session.Width}×{session.Height} at {session.PixelsPerPoint} px/pt, " +
+                         $"{model.Duration:F2}s, {session.Cursor.Count} pointer samples");
+        Assert.InRange(model.Duration, 1.0, 5.0);
+        Assert.True(session.Cursor.Count > 0 || Capture.Screens.CursorPosition() == null);
+        Assert.True(File.Exists(session.VideoPath));
+        Pump(1.0);
+        Save(main, "ui-editor-recording.png");
+
+        model.CloseEditor();  // releases the video file
+        foreach (var folder in Directory.GetDirectories(AppModel.RecordingsRoot).Where(f => !existing.Contains(f)))
+        {
+            try { Directory.Delete(folder, recursive: true); } catch (IOException) { }
+        }
     }
 
     private static void Pump(double seconds)
@@ -114,6 +169,8 @@ public class UiTests(ITestOutputHelper output)
         while (!condition() && DateTime.UtcNow < deadline) Pump(0.05);
     }
 
+    private static bool _dark;
+
     private static void Save(Window window, string name)
     {
         var width = (int)Math.Ceiling(window.ActualWidth);
@@ -125,12 +182,21 @@ public class UiTests(ITestOutputHelper output)
         using (var file = File.Create(Path.Combine(SyntheticRecording.ArtifactDirectory, name)))
             encoder.Save(file);
 
-        // A small JPEG too, for looking at in CI logs.
+        // A small JPEG too, for looking at in CI logs. Windows 11 shows its Mica backdrop through the
+        // window, which a snapshot can't capture; put a similar colour behind (except for the toolbar,
+        // which is see-through around the pill).
         var scale = Math.Min(1.0, 720.0 / width);
-        var small = new TransformedBitmap(bitmap, new ScaleTransform(scale, scale));
-        var flattened = new FormatConvertedBitmap(small, PixelFormats.Bgr24, null, 0);
-        var jpeg = new JpegBitmapEncoder { QualityLevel = 55 };
-        jpeg.Frames.Add(BitmapFrame.Create(flattened));
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            var backdrop = window is ToolbarWindow ? Color.FromRgb(90, 110, 140) : _dark ? Color.FromRgb(32, 32, 32) : Color.FromRgb(243, 243, 243);
+            dc.DrawRectangle(new SolidColorBrush(backdrop), null, new Rect(0, 0, width * scale, height * scale));
+            dc.DrawImage(bitmap, new Rect(0, 0, width * scale, height * scale));
+        }
+        var small = new RenderTargetBitmap((int)(width * scale), (int)(height * scale), 96, 96, PixelFormats.Pbgra32);
+        small.Render(visual);
+        var jpeg = new JpegBitmapEncoder { QualityLevel = 60 };
+        jpeg.Frames.Add(BitmapFrame.Create(new FormatConvertedBitmap(small, PixelFormats.Bgr24, null, 0)));
         using var thumb = File.Create(Path.Combine(SyntheticRecording.ThumbnailDirectory, Path.ChangeExtension(name, ".jpg")));
         jpeg.Save(thumb);
     }

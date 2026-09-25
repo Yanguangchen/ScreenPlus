@@ -64,7 +64,7 @@ internal partial class EditorView : UserControl
         if (_model == null) return;
         Timeline.Duration = _model.Duration;
         Timeline.Position = _model.Position;
-        TimeText.Text = $"{Format(_model.Position)} / {Format(_model.Duration)}";
+        TimeText.Text = $"{Format(_model.Position)} / {Format(Math.Round(_model.Duration))}";
     }
 
     private static string Format(double seconds)
