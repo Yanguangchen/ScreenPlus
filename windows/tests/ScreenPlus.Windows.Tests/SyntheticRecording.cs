@@ -122,7 +122,7 @@ internal static unsafe class SyntheticRecording
         using var png = image.Encode(SKEncodedImageFormat.Png, 100);
         File.WriteAllBytes(Path.Combine(ArtifactDirectory, name), png.ToArray());
 
-        // A small JPEG too, for looking at in CI logs.
+        // A small JPEG too, for a quick look.
         var scale = Math.Min(1.0, 480.0 / width);
         var small = new SKImageInfo((int)(width * scale), (int)(height * scale), SKColorType.Bgra8888, SKAlphaType.Opaque);
         using var surface = SKSurface.Create(small)!;

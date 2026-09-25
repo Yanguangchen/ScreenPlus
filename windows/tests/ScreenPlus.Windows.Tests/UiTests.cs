@@ -182,7 +182,7 @@ public class UiTests(ITestOutputHelper output)
         using (var file = File.Create(Path.Combine(SyntheticRecording.ArtifactDirectory, name)))
             encoder.Save(file);
 
-        // A small JPEG too, for looking at in CI logs. Windows 11 shows its Mica backdrop through the
+        // A small JPEG too, for a quick look. Windows 11 shows its Mica backdrop through the
         // window, which a snapshot can't capture; put a similar colour behind (except for the toolbar,
         // which is see-through around the pill).
         var scale = Math.Min(1.0, 720.0 / width);
