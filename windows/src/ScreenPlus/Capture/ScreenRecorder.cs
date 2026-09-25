@@ -96,15 +96,28 @@ internal sealed unsafe class ScreenRecorder : IDisposable
             _captureWidth = size.Width;
             _captureHeight = size.Height;
 
-            // H.264 encoders top out around 4096 pixels wide; record bigger displays at half size.
-            _factor = size.Width > 4096 || size.Height > 4096 || (long)size.Width * size.Height > 4096L * 2304 ? 2 : 1;
-            Width = size.Width / _factor & ~1;
-            Height = size.Height / _factor & ~1;
             CreateStagingTexture();
-
-            var bitrate = (int)Math.Clamp((long)Width * Height * 8, 12_000_000, 80_000_000);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            _writer = Mp4Writer.Create(path, new Mp4Writer.Options(Width, Height, Fps, bitrate, KeyframeInterval: Fps, Audio: false));
+
+            // H.264 encoders top out around 4096 pixels wide; record bigger displays at half size,
+            // and fall back to half size too if no encoder takes the full size (e.g. tall portrait screens).
+            var tooBig = size.Width > 4096 || size.Height > 4096 || (long)size.Width * size.Height > 4096L * 2304;
+            for (_factor = tooBig ? 2 : 1; ; _factor++)
+            {
+                Width = size.Width / _factor & ~1;
+                Height = size.Height / _factor & ~1;
+                var bitrate = (int)Math.Clamp((long)Width * Height * 8, 12_000_000, 80_000_000);
+                try
+                {
+                    var options = new Mp4Writer.Options(Width, Height, Fps, bitrate, KeyframeInterval: Fps, Audio: false);
+                    _writer = Mp4Writer.Create(path, options, preferHardware: Mp4Writer.HardwareWorks(Width, Height, Fps));
+                    break;
+                }
+                catch (MediaException) when (_factor < 2)
+                {
+                    Mp4Writer.TryDelete(path);
+                }
+            }
 
             _queue = new BlockingCollection<(nint, long)>(boundedCapacity: 8);
             _encoderThread = new Thread(EncodeLoop) { IsBackground = true, Name = "ScreenPlus encoder" };
@@ -284,6 +297,9 @@ internal sealed unsafe class ScreenRecorder : IDisposable
         _staging = staging;
     }
 
+    // TerraFX marks these interop interfaces as Windows 10 21H1+, but they exist since 1803.
+#pragma warning disable CA1416
+
     /// <summary>A capture item for a whole display, via IGraphicsCaptureItemInterop.</summary>
     public static GraphicsCaptureItem CreateItemForMonitor(HMONITOR monitor)
     {
@@ -334,6 +350,8 @@ internal sealed unsafe class ScreenRecorder : IDisposable
             access->Release();
         }
     }
+
+#pragma warning restore CA1416
 
     public void Dispose()
     {

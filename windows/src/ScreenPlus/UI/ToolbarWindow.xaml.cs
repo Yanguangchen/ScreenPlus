@@ -34,10 +34,16 @@ internal partial class ToolbarWindow : Window
     /// <summary>Shows the toolbar at the bottom centre of the screen with the pointer, above the taskbar.</summary>
     public void ShowAtBottomOfScreen()
     {
+        // Invisible until it's in place, so it doesn't flash wherever Windows first puts it.
+        Opacity = 0;
         Show();
         Position();
         // Moving to a screen with different scaling resizes the window; place it again once that's done.
-        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, Position);
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+        {
+            Position();
+            Opacity = 1;
+        });
     }
 
     private void Position()

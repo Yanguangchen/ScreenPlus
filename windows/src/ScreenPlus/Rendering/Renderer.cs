@@ -9,8 +9,27 @@ internal sealed unsafe class Renderer(RecordingSession session, RenderSettings s
 {
     private const int Bitrate = 20_000_000;
 
+    /// <summary>Tallest output the software H.264 encoder takes; portrait screens are scaled to fit.</summary>
+    private const int MaxOutputHeight = 2160;
+
     public void Render(string outputPath, Action<double>? progress, CancellationToken cancellation)
     {
+        try
+        {
+            RenderOnce(outputPath, progress, cancellation, preferHardware: true);
+        }
+        catch (MediaException) when (!cancellation.IsCancellationRequested && _usedHardware)
+        {
+            // Some GPU encoders fail partway through; Windows' software encoder always works.
+            RenderOnce(outputPath, progress, cancellation, preferHardware: false);
+        }
+    }
+
+    private bool _usedHardware;
+
+    private void RenderOnce(string outputPath, Action<double>? progress, CancellationToken cancellation, bool preferHardware)
+    {
+        _usedHardware = false;
         using var reader = new Mp4Reader(session.VideoPath);
         var source = new SourceFrames(reader);
         try
@@ -18,7 +37,7 @@ internal sealed unsafe class Renderer(RecordingSession session, RenderSettings s
             var duration = reader.Duration > 0 ? reader.Duration - source.BaseTime : 0;
             if (duration <= 0) throw new MediaException("The recording is empty.");
 
-            using var composer = new FrameComposer(session, settings, cursor, duration, settings.OutputWidth);
+            using var composer = CreateComposer(duration);
             var fps = settings.Fps;
             var hits = new List<InputSounds.Hit>();
             if (settings.ClickSounds) hits.AddRange(InputSounds.ClickHits(session));
@@ -32,8 +51,10 @@ internal sealed unsafe class Renderer(RecordingSession session, RenderSettings s
             try
             {
                 using (var writer = Mp4Writer.Create(temporary, new Mp4Writer.Options(
-                           composer.Width, composer.Height, fps, Bitrate, KeyframeInterval: fps * 2, Audio: !sounds.IsEmpty)))
+                           composer.Width, composer.Height, fps, Bitrate, KeyframeInterval: fps * 2, Audio: !sounds.IsEmpty),
+                           preferHardware))
                 {
+                    _usedHardware = writer.UsesHardware;
                     RenderFrames(composer, source, writer, sounds, duration, fps, progress, cancellation);
                     writer.Finish();
                 }
@@ -49,6 +70,15 @@ internal sealed unsafe class Renderer(RecordingSession session, RenderSettings s
         {
             source.Dispose();
         }
+    }
+
+    private FrameComposer CreateComposer(double duration)
+    {
+        var composer = new FrameComposer(session, settings, cursor, duration, settings.OutputWidth);
+        if (composer.Height <= MaxOutputHeight) return composer;
+        var width = (int)((long)composer.Width * MaxOutputHeight / composer.Height);
+        composer.Dispose();
+        return new FrameComposer(session, settings, cursor, duration, width);
     }
 
     private static void RenderFrames(FrameComposer composer, SourceFrames source, Mp4Writer writer, SoundTrack sounds,

@@ -99,6 +99,20 @@ jobs:
           Get-Content help.txt
           if ($p.ExitCode -ne 0) { throw "ScreenPlus --help exited with $($p.ExitCode)" }
 
+      # Temporary: the sandbox that develops this can't download artifacts, so print small screenshots.
+      - name: Print screenshot thumbnails
+        if: always() && matrix.rid == 'win-x64'
+        shell: pwsh
+        run: |
+          foreach ($name in 'ui-toolbar.jpg', 'ui-home.jpg', 'ui-editor.jpg') {
+            $path = "test-output/thumbs/$name"
+            if (-not (Test-Path $path)) { "THUMB-MISSING $name"; continue }
+            $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($path))
+            "THUMB-BEGIN $name $($b64.Length)"
+            for ($i = 0; $i -lt $b64.Length; $i += 3000) { "THUMB " + $b64.Substring($i, [Math]::Min(3000, $b64.Length - $i)) }
+            "THUMB-END $name"
+          }
+
       - uses: actions/upload-artifact@v4
         with:
           name: ScreenPlus-${{ matrix.rid }}

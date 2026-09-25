@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using TerraFX.Interop.Windows;
 using static ScreenPlus.Media.MediaFoundation;
 using static TerraFX.Interop.Windows.MF;
@@ -37,6 +38,47 @@ internal sealed unsafe class Mp4Writer : IDisposable
             // Some GPU encoders reject a size or format; the software encoder handles everything.
             TryDelete(path);
             return new Mp4Writer(path, options, hardware: false);
+        }
+    }
+
+    private static readonly Dictionary<(int, int, int), bool> HardwareProbes = [];
+
+    /// <summary>
+    /// Whether the GPU encoder really works at this size: writes a few frames to a scratch file. Some
+    /// drivers accept the setup and only fail once frames arrive, which would ruin a recording.
+    /// </summary>
+    public static bool HardwareWorks(int width, int height, int fps)
+    {
+        lock (HardwareProbes)
+        {
+            if (HardwareProbes.TryGetValue((width, height, fps), out var known)) return known;
+            var path = Path.Combine(Path.GetTempPath(), $"ScreenPlus-probe-{Guid.NewGuid():N}.mp4");
+            var works = false;
+            try
+            {
+                using var writer = new Mp4Writer(path, new Options(width, height, fps, 4_000_000, fps, Audio: false), hardware: true);
+                var frame = (byte*)NativeMemory.AllocZeroed((nuint)writer.FrameBytes);
+                try
+                {
+                    for (var i = 0; i < 3; i++) writer.WriteVideo(frame, i * 10_000_000L / fps, 10_000_000L / fps);
+                }
+                finally
+                {
+                    NativeMemory.Free(frame);
+                }
+                writer.Finish();
+                works = new FileInfo(path).Length > 0;
+            }
+            catch (MediaException)
+            {
+                works = false;
+            }
+            finally
+            {
+                TryDelete(path);
+            }
+            HardwareProbes[(width, height, fps)] = works;
+            return works;
         }
     }
 

@@ -14,8 +14,9 @@
     <!-- Program.Main handles the command-line tools before starting the app. -->
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
     <StartupObject>ScreenPlus.Program</StartupObject>
-    <!-- WPF's Fluent (Windows 11) theme is still marked experimental. -->
-    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <!-- WPF0001: WPF's Fluent (Windows 11) theme is still marked experimental.
+         WFO0003: WinForms (only used for the tray icon) prefers its own DPI setting; the manifest's is for WPF. -->
+    <NoWarn>$(NoWarn);WPF0001;WFO0003</NoWarn>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 

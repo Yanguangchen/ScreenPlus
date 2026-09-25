@@ -23,7 +23,7 @@ internal sealed class TrayIcon : IDisposable
             ContextMenuStrip = menu,
             Visible = false,
         };
-        using (var stream = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/AppIcon.ico"))?.Stream)
+        using (var stream = Application.GetResourceStream(new Uri("pack://application:,,,/ScreenPlus;component/Assets/AppIcon.ico"))?.Stream)
         {
             if (stream != null) _icon.Icon = new System.Drawing.Icon(stream, Forms.SystemInformation.SmallIconSize);
         }

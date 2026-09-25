@@ -25,6 +25,16 @@ internal static unsafe class SyntheticRecording
         }
     }
 
+    public static string ThumbnailDirectory
+    {
+        get
+        {
+            var dir = Path.Combine(ArtifactDirectory, "thumbs");
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+    }
+
     /// <summary>
     /// Frames arrive at a variable rate like real captures: 30 fps for two seconds, nothing for a second
     /// (a still screen), then 60 fps.
@@ -111,5 +121,13 @@ internal static unsafe class SyntheticRecording
         using var image = SKImage.FromPixelCopy(info, pixels, stride)!;
         using var png = image.Encode(SKEncodedImageFormat.Png, 100);
         File.WriteAllBytes(Path.Combine(ArtifactDirectory, name), png.ToArray());
+
+        // A small JPEG too, for looking at in CI logs.
+        var scale = Math.Min(1.0, 480.0 / width);
+        var small = new SKImageInfo((int)(width * scale), (int)(height * scale), SKColorType.Bgra8888, SKAlphaType.Opaque);
+        using var surface = SKSurface.Create(small)!;
+        surface.Canvas.DrawImage(image, SKRect.Create(small.Width, small.Height), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+        using var jpeg = surface.Snapshot().Encode(SKEncodedImageFormat.Jpeg, 55);
+        File.WriteAllBytes(Path.Combine(ThumbnailDirectory, Path.ChangeExtension(name, ".jpg")), jpeg.ToArray());
     }
 }

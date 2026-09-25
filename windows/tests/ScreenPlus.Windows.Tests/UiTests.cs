@@ -122,7 +122,16 @@ public class UiTests(ITestOutputHelper output)
         bitmap.Render(window);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var file = File.Create(Path.Combine(SyntheticRecording.ArtifactDirectory, name));
-        encoder.Save(file);
+        using (var file = File.Create(Path.Combine(SyntheticRecording.ArtifactDirectory, name)))
+            encoder.Save(file);
+
+        // A small JPEG too, for looking at in CI logs.
+        var scale = Math.Min(1.0, 720.0 / width);
+        var small = new TransformedBitmap(bitmap, new ScaleTransform(scale, scale));
+        var flattened = new FormatConvertedBitmap(small, PixelFormats.Bgr24, null, 0);
+        var jpeg = new JpegBitmapEncoder { QualityLevel = 55 };
+        jpeg.Frames.Add(BitmapFrame.Create(flattened));
+        using var thumb = File.Create(Path.Combine(SyntheticRecording.ThumbnailDirectory, Path.ChangeExtension(name, ".jpg")));
+        jpeg.Save(thumb);
     }
 }

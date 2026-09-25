@@ -102,7 +102,7 @@ public unsafe class MediaTests(ITestOutputHelper output)
             new Renderer(session, new RenderSettings(), cursor).Render(outputPath, p => { if (p > 0.2) cancel.Cancel(); }, cancel.Token));
 
         Assert.False(File.Exists(outputPath));
-        Assert.Empty(Directory.GetFiles(folder, "*.mp4").Where(f => f.Contains("partial")));
+        Assert.DoesNotContain(Directory.GetFiles(folder, "*.mp4"), f => f.Contains("partial"));
     }
 
     [Fact]
