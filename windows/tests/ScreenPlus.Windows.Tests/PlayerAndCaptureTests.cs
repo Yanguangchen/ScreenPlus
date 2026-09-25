@@ -38,11 +38,14 @@ public unsafe class PlayerAndCaptureTests(ITestOutputHelper output)
         Assert.True(frames.Wait(TimeSpan.FromSeconds(10)), "the preview didn't redraw after seeking back");
 
         player.Seek(1.0);
+        while (frames.Wait(TimeSpan.FromMilliseconds(200))) { }  // drain
+        var shown = 0;
+        player.FrameReady += () => Interlocked.Increment(ref shown);
         player.Play();
         Thread.Sleep(700);
         var position = player.Position;
         player.Pause();
-        output.WriteLine($"played from 1.0 s for 0.7 s, now at {position:F3} s");
+        output.WriteLine($"played from 1.0 s for 0.7 s, now at {position:F3} s; {shown / 0.7:F0} frames/s on {Environment.ProcessorCount} cores");
         Assert.InRange(position, 1.3, 1.9);
 
         // Settings changes swap the composer while running.
