@@ -168,7 +168,11 @@ internal sealed class DecodeAhead : IDisposable
     {
         lock (_lock) _disposed = true;
         _decoderWake.Set();
-        _thread.Join();
+        if (!_thread.Join(TimeSpan.FromSeconds(5)))
+        {
+            System.Diagnostics.Trace.WriteLine("ScreenPlus: the decoder thread didn't stop; leaving it behind");
+            return;  // it may still be using the reader and frames
+        }
         lock (_lock)
         {
             _current?.Release();
