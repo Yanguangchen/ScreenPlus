@@ -1,0 +1,113 @@
+name: Windows
+
+on:
+  push:
+    paths:
+      - "windows/**"
+      - "Resources/AppIcon.png"
+      - ".github/workflows/windows.yml"
+  pull_request:
+    paths:
+      - "windows/**"
+      - "Resources/AppIcon.png"
+      - ".github/workflows/windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  core:
+    name: Core tests (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: windows/global.json
+      - name: Test
+        working-directory: windows
+        run: dotnet test tests/ScreenPlus.Core.Tests -c Release
+      - name: Build the Windows app (cross-compile check)
+        working-directory: windows
+        run: dotnet build src/ScreenPlus -c Release
+
+  windows:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: windows-11-arm
+            rid: win-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: windows/global.json
+
+      - name: Describe the machine
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture | Format-List
+          "Media Foundation (mfplat.dll): $(Test-Path $env:WINDIR\System32\mfplat.dll)"
+          "H.264 encoder (msmpeg2enc.dll): $(Test-Path $env:WINDIR\System32\msmpeg2enc.dll)"
+          "Session: $([System.Diagnostics.Process]::GetCurrentProcess().SessionId), interactive: $([Environment]::UserInteractive)"
+
+      - name: Install Media Foundation if missing (Windows Server)
+        shell: pwsh
+        run: |
+          if (-not (Test-Path $env:WINDIR\System32\mfplat.dll) -and (Get-Command Install-WindowsFeature -ErrorAction SilentlyContinue)) {
+            Install-WindowsFeature Server-Media-Foundation | Format-List
+            "Media Foundation now: $(Test-Path $env:WINDIR\System32\mfplat.dll)"
+          }
+
+      - name: Build
+        working-directory: windows
+        run: dotnet build ScreenPlus.Windows.slnx -c Release
+
+      - name: Core tests
+        working-directory: windows
+        run: dotnet test tests/ScreenPlus.Core.Tests -c Release --no-build
+        env:
+          SCREENPLUS_TEST_OUTPUT: ${{ github.workspace }}/test-output
+
+      - name: Windows integration tests
+        working-directory: windows
+        run: dotnet test tests/ScreenPlus.Windows.Tests -c Release --no-build --logger "console;verbosity=detailed"
+        env:
+          SCREENPLUS_TEST_OUTPUT: ${{ github.workspace }}/test-output
+
+      - name: Publish
+        working-directory: windows
+        run: >
+          dotnet publish src/ScreenPlus -c Release -r ${{ matrix.rid }} --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+          -o ${{ github.workspace }}/dist
+
+      - name: Smoke-test the published app
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist/ScreenPlus.exe -ArgumentList '--help' -Wait -PassThru -NoNewWindow -RedirectStandardOutput help.txt
+          Get-Content help.txt
+          if ($p.ExitCode -ne 0) { throw "ScreenPlus --help exited with $($p.ExitCode)" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ScreenPlus-${{ matrix.rid }}
+          path: dist/ScreenPlus.exe
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-output-${{ matrix.rid }}
+          path: test-output
+          if-no-files-found: ignore

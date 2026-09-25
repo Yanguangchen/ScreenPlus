@@ -1,0 +1,146 @@
+<Window x:Class="ScreenPlus.UI.ToolbarWindow" x:ClassModifier="internal"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ScreenPlus" Width="480" Height="104"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
+        Topmost="True" ShowInTaskbar="False" ShowActivated="False" Focusable="False"
+        UseLayoutRounding="True" FontFamily="Segoe UI Variable Text, Segoe UI">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Ink" Color="#F2FFFFFF" />
+        <SolidColorBrush x:Key="Hover" Color="#1FFFFFFF" />
+
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Ink}" />
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="Root" Width="34" Height="34" Background="Transparent" RenderTransformOrigin="0.5,0.5">
+                            <Ellipse x:Name="Circle" Fill="Transparent" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Circle" Property="Fill" Value="{StaticResource Hover}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.94" ScaleY="0.94" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The red Record / Stop capsule. -->
+        <Style x:Key="PillButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Pill" Height="36" CornerRadius="18" Padding="16,0" RenderTransformOrigin="0.5,0.5">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#FF4A40" Offset="0" />
+                                    <GradientStop Color="#E0302A" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Pill" Property="Opacity" Value="0.92" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Pill" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.94" ScaleY="0.94" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="Divider" TargetType="Rectangle">
+            <Setter Property="Width" Value="1" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="Fill" Value="#26FFFFFF" />
+        </Style>
+
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Ink}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+
+    <Border x:Name="Pill" HorizontalAlignment="Center" VerticalAlignment="Center" Height="52" CornerRadius="26"
+            Padding="8,0" BorderThickness="1" BorderBrush="#33FFFFFF" Background="#EB1F1F22"
+            MouseLeftButtonDown="OnDrag">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="8" Direction="270" Opacity="0.35" />
+        </Border.Effect>
+        <Grid>
+            <!-- Idle: close · source · record · editor -->
+            <StackPanel x:Name="IdlePanel" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Style="{StaticResource IconButton}" Content="&#xE711;" ToolTip="Close toolbar" Click="OnClose" />
+                <Rectangle Style="{StaticResource Divider}" />
+                <StackPanel Orientation="Horizontal" Margin="10,0" Background="Transparent"
+                            ToolTip="Records the screen the pointer is on">
+                    <TextBlock FontFamily="{StaticResource IconFont}" FontSize="15" Text="&#xE7F4;" />
+                    <TextBlock Text="Screen" FontSize="13" FontWeight="Medium" Margin="7,0,4,0" />
+                </StackPanel>
+                <Button Style="{StaticResource PillButton}" Click="OnRecord" ToolTip="Start recording after a 3-second countdown">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="9" Height="9" Fill="White" VerticalAlignment="Center" />
+                        <TextBlock Text="Record" Foreground="White" Margin="7,0,0,0" />
+                    </StackPanel>
+                </Button>
+                <Rectangle Style="{StaticResource Divider}" />
+                <Button Style="{StaticResource IconButton}" Content="&#xE8F1;" ToolTip="Open editor &amp; recordings"
+                        Click="OnOpenEditor" />
+            </StackPanel>
+
+            <!-- Countdown -->
+            <StackPanel x:Name="CountdownPanel" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
+                <TextBlock x:Name="CountdownText" Width="44" TextAlignment="Center" FontSize="22" FontWeight="Bold"
+                           Typography.NumeralAlignment="Tabular" Text="3" />
+                <TextBlock Text="Get ready…" FontSize="13" FontWeight="Medium" Opacity="0.7" Margin="0,0,6,0" />
+                <Button Style="{StaticResource IconButton}" Content="&#xE711;" ToolTip="Cancel" Click="OnCancelCountdown" />
+            </StackPanel>
+
+            <!-- Recording: time · discard · stop -->
+            <StackPanel x:Name="RecordingPanel" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal" Margin="12,0">
+                    <Ellipse x:Name="RecordingDot" Width="10" Height="10" Fill="{StaticResource RecordRedBrush}" />
+                    <TextBlock x:Name="ElapsedText" Text="0:00" Margin="8,0,0,0" FontSize="15" FontWeight="SemiBold"
+                               Typography.NumeralAlignment="Tabular" />
+                </StackPanel>
+                <Rectangle Style="{StaticResource Divider}" />
+                <Button Style="{StaticResource IconButton}" Content="&#xE74D;" ToolTip="Discard recording" Click="OnDiscard" />
+                <Button Style="{StaticResource PillButton}" Click="OnStop" ToolTip="Stop recording (Ctrl+Shift+R in ScreenPlus)">
+                    <StackPanel Orientation="Horizontal">
+                        <Rectangle Width="10" Height="10" RadiusX="2.5" RadiusY="2.5" Fill="White" VerticalAlignment="Center" />
+                        <TextBlock Text="Stop" Foreground="White" Margin="7,0,0,0" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <!-- Starting / stopping -->
+            <TextBlock x:Name="BusyText" Text="Starting…" FontSize="13" Margin="16,0" Visibility="Collapsed" />
+        </Grid>
+    </Border>
+</Window>

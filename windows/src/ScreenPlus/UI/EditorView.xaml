@@ -1,0 +1,201 @@
+<UserControl x:Class="ScreenPlus.UI.EditorView" x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:ScreenPlus.UI">
+    <UserControl.Resources>
+        <Style x:Key="SettingTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style x:Key="Section" TargetType="StackPanel">
+            <Setter Property="Margin" Value="0,0,0,22" />
+        </Style>
+        <Style x:Key="SettingRow" TargetType="Grid">
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="300" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Live preview, transport and zoom timeline -->
+        <Grid Grid.Column="0" Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+            <Grid Margin="20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Border x:Name="PreviewFrame" HorizontalAlignment="Center" VerticalAlignment="Center" CornerRadius="10"
+                        Background="Black">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="24" ShadowDepth="4" Direction="270" Opacity="0.25" />
+                    </Border.Effect>
+                    <Image x:Name="Preview" Source="{Binding PreviewImage}" Stretch="Uniform"
+                           RenderOptions.BitmapScalingMode="HighQuality" SizeChanged="OnPreviewSizeChanged"
+                           MouseLeftButtonDown="OnPreviewClicked" ToolTip="Click to play or pause (Space)" />
+                </Border>
+
+                <Grid Grid.Row="1" Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="PlayButton" Width="36" Height="32" Padding="0" Click="OnPlayPause" ToolTip="Play / pause (Space)">
+                        <Grid>
+                            <TextBlock FontFamily="{StaticResource IconFont}" FontSize="14" Text="&#xE768;"
+                                       Visibility="{Binding IsPlaying, Converter={StaticResource Collapsed}}" />
+                            <TextBlock FontFamily="{StaticResource IconFont}" FontSize="14" Text="&#xE769;"
+                                       Visibility="{Binding IsPlaying, Converter={StaticResource Visible}}" />
+                        </Grid>
+                    </Button>
+                    <TextBlock x:Name="TimeText" Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center"
+                               Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Text="0:00 / 0:00" />
+                </Grid>
+
+                <StackPanel Grid.Row="2" Margin="0,12,0,0">
+                    <Grid Margin="0,0,0,6">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="{StaticResource IconFont}" FontSize="12" Text="&#xE8A3;" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Text="Zooms" Margin="6,0,0,0" FontSize="12" FontWeight="Medium"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <TextBlock x:Name="ZoomCount" HorizontalAlignment="Right" FontSize="12"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                    </Grid>
+                    <ui:ZoomTimeline x:Name="Timeline" Height="34" SeekRequested="OnSeek" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <Rectangle Grid.Column="1" Width="1" Fill="{DynamicResource DividerStrokeColorDefaultBrush}" />
+
+        <!-- Settings -->
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <ScrollViewer x:Name="Settings" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="20,20,20,8">
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Style="{StaticResource SectionHeader}" Text="ZOOM" />
+                        <Grid Style="{StaticResource SettingRow}">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <TextBlock Style="{StaticResource SettingTitle}" Text="Zoom level" />
+                            <TextBlock Style="{StaticResource SettingValue}" Text="{Binding ZoomLevel, StringFormat={}{0:0.0}×}" />
+                            <Slider Grid.Row="1" Minimum="1.25" Maximum="4" Value="{Binding ZoomLevel}" />
+                        </Grid>
+                        <Grid Style="{StaticResource SettingRow}">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <TextBlock Style="{StaticResource SettingTitle}" Text="Zoom out after" />
+                            <TextBlock Style="{StaticResource SettingValue}" Text="{Binding IdleTimeout, StringFormat={}{0:0.0}s}" />
+                            <Slider Grid.Row="1" Minimum="0.5" Maximum="5" Value="{Binding IdleTimeout}" />
+                        </Grid>
+                        <CheckBox Content="Zoom on clicks only" IsChecked="{Binding ClicksOnly}" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Style="{StaticResource SectionHeader}" Text="CURSOR" />
+                        <Grid Style="{StaticResource SettingRow}">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <TextBlock Style="{StaticResource SettingTitle}" Text="Size" />
+                            <TextBlock Style="{StaticResource SettingValue}" Text="{Binding CursorScale, StringFormat={}{0:0.0}×}" />
+                            <Slider Grid.Row="1" Minimum="1" Maximum="3" Value="{Binding CursorScale}" />
+                        </Grid>
+                        <Grid Style="{StaticResource SettingRow}">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <TextBlock Style="{StaticResource SettingTitle}" Text="Smoothing" />
+                            <TextBlock Style="{StaticResource SettingValue}"
+                                       Text="{Binding CursorSmoothing, Converter={StaticResource Percent}, StringFormat={}{0:0}%}" />
+                            <Slider Grid.Row="1" Minimum="0" Maximum="1" Value="{Binding CursorSmoothing}" />
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Style="{StaticResource SectionHeader}" Text="BACKGROUND" />
+                        <UniformGrid x:Name="Swatches" Columns="4" />
+                        <StackPanel Visibility="{Binding HasBackgroundImage, Converter={StaticResource Visible}}" Margin="0,8,0,0">
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="ImageName" Style="{StaticResource Caption}" TextWrapping="NoWrap"
+                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                <Button Grid.Column="1" Content="Remove" Padding="10,3" FontSize="12" Click="OnRemoveImage" />
+                            </Grid>
+                            <Grid Style="{StaticResource SettingRow}">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <TextBlock Style="{StaticResource SettingTitle}" Text="Blur" />
+                                <TextBlock Style="{StaticResource SettingValue}"
+                                           Text="{Binding BackgroundBlur, Converter={StaticResource Percent}, StringFormat={}{0:0}%}" />
+                                <Slider Grid.Row="1" Minimum="0" Maximum="1" Value="{Binding BackgroundBlur}" />
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Style="{StaticResource SectionHeader}" Text="LOOK" />
+                        <Grid Style="{StaticResource SettingRow}">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <TextBlock Style="{StaticResource SettingTitle}" Text="Padding" />
+                            <TextBlock Style="{StaticResource SettingValue}"
+                                       Text="{Binding Padding, Converter={StaticResource Percent}, StringFormat={}{0:0}%}" />
+                            <Slider Grid.Row="1" Minimum="0" Maximum="0.15" Value="{Binding Padding}" />
+                        </Grid>
+                        <CheckBox Content="Motion blur" IsChecked="{Binding MotionBlur}" />
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Style="{StaticResource SectionHeader}" Text="SOUND" />
+                        <CheckBox Content="Mouse click sounds" IsChecked="{Binding ClickSounds}" />
+                        <CheckBox Content="Keyboard sounds" IsChecked="{Binding KeyboardSounds}" Margin="0,6,0,0" />
+                        <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" Text="{Binding SessionSummary}" />
+                        <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   Text="Only the timing of key presses is saved, never what you type." />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Export -->
+            <Border Grid.Row="1" BorderThickness="0,1,0,0" Padding="20"
+                    BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}">
+                <Grid>
+                    <StackPanel Visibility="{Binding IsExporting, Converter={StaticResource Visible}}">
+                        <TextBlock x:Name="ExportText" Text="Exporting… 0%" Margin="0,0,0,8" />
+                        <ProgressBar Minimum="0" Maximum="1" Value="{Binding ExportProgress, Mode=OneWay}" Height="6" />
+                        <Button Content="Cancel" HorizontalAlignment="Stretch" Margin="0,12,0,0" Click="OnCancelExport" />
+                    </StackPanel>
+                    <StackPanel Visibility="{Binding IsExporting, Converter={StaticResource Collapsed}}">
+                        <Button HorizontalAlignment="Stretch" Padding="12,9" Style="{DynamicResource AccentButtonStyle}"
+                                Click="OnExport" ToolTip="Ctrl+E">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xEDE1;" VerticalAlignment="Center" />
+                                <TextBlock Text="Export MP4…" Margin="8,0,0,0" FontSize="14" />
+                            </StackPanel>
+                        </Button>
+                        <Button HorizontalAlignment="Stretch" Margin="0,8,0,0" Padding="12,7" Click="OnShowExported"
+                                Visibility="{Binding ExportedPath, Converter={StaticResource VisibleIfSet}}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE73E;" Foreground="#2EA043"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="Exported — Show in Explorer" Margin="8,0,0,0" />
+                            </StackPanel>
+                        </Button>
+                        <Grid Margin="0,12,0,0">
+                            <Button Style="{StaticResource LinkButton}" Content="New Recording" HorizontalAlignment="Left"
+                                    Click="OnNewRecording" />
+                            <Button Style="{StaticResource LinkButton}" Content="Open…" HorizontalAlignment="Right" Click="OnOpen" />
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
