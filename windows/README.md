@@ -9,11 +9,18 @@ Requires Windows 10 version 2004 (May 2020 Update) or later, or Windows 11, on x
 
 ## Download
 
-Every push builds a ready-to-run, self-contained `ScreenPlus.exe` (no .NET install needed). Open the
-repository's **Actions** tab, choose the latest **Windows** run, and download the **ScreenPlus-win-x64**
-(or **ScreenPlus-win-arm64**) artifact. GitHub only offers artifact downloads when you're signed in.
+Every push builds a **setup program** and a **portable exe**. Open the repository's **Actions** tab, choose
+the latest **Windows** run, and download one of these artifacts (GitHub only offers downloads when you're
+signed in):
 
-The exe isn't code-signed, so Windows SmartScreen may say it "protected your PC" the first time. Click
+- **ScreenPlus-Setup-win-x64** (or **-win-arm64** for Windows on Arm): `ScreenPlus-Setup-<version>-x64.exe`
+  installs ScreenPlus for your account (no admin rights needed; the first page also offers "all users"),
+  adds it to the Start menu and optionally the desktop, and registers an uninstaller under
+  Settings → Apps. Running a newer setup upgrades an existing install.
+- **ScreenPlus-win-x64** (or **-win-arm64**): a single self-contained `ScreenPlus.exe` that runs from
+  anywhere without installing.
+
+Neither is code-signed yet, so Windows SmartScreen may say it "protected your PC" the first time. Click
 **More info → Run anyway**.
 
 ## Build & run
@@ -24,7 +31,11 @@ Install the [.NET 10 SDK](https://dotnet.microsoft.com/download), then from this
 dotnet run --project src/ScreenPlus          # build and start
 .\scripts\publish.ps1                         # build dist\win-x64\ScreenPlus.exe
 .\scripts\publish.ps1 -Runtime win-arm64      # for Windows on Arm
+.\scripts\publish.ps1 -Installer              # also build dist\ScreenPlus-Setup-<version>-x64.exe
 ```
+
+The installer needs [Inno Setup 6.3+](https://jrsoftware.org/isdl.php) (`winget install JRSoftware.InnoSetup`);
+its script is `installer/ScreenPlus.iss`. To release a new version, bump `<Version>` in `Directory.Build.props`.
 
 Visual Studio or Rider can open `ScreenPlus.Windows.slnx`.
 

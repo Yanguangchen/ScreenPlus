@@ -102,6 +102,50 @@ jobs:
           if ($p.ExitCode -ne 0 -or -not (Test-Path smoke.mp4)) { throw "ScreenPlus --render exited with $($p.ExitCode)" }
           "smoke.mp4: $((Get-Item smoke.mp4).Length) bytes"
 
+      - name: Build the installer
+        shell: pwsh
+        working-directory: windows
+        run: |
+          # The installer ships the app as a folder, which starts faster than the self-extracting single exe.
+          dotnet publish src/ScreenPlus -c Release -r ${{ matrix.rid }} --self-contained -o dist/app-${{ matrix.rid }}
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          $version = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version
+          $arch = '${{ matrix.rid }}' -replace '^win-', ''
+          & $iscc "/DAppVersion=$version" "/DArch=$arch" "/DSourceDir=$(Resolve-Path dist/app-${{ matrix.rid }})" installer/ScreenPlus.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item "dist/ScreenPlus-Setup-$version-$arch.exe" ${{ github.workspace }}/dist/
+
+      - name: Test the installer (install, run, uninstall)
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem dist/ScreenPlus-Setup-*.exe).FullName
+          $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/TASKS=desktopicon', '/LOG=install.log' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content install.log; throw "setup exited with $($p.ExitCode)" }
+          $app = "$env:LOCALAPPDATA\Programs\ScreenPlus\ScreenPlus.exe"
+          if (-not (Test-Path $app)) { Get-Content install.log; throw "ScreenPlus.exe wasn't installed" }
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\ScreenPlus.lnk")) { throw "no Start menu shortcut" }
+          if (-not (Test-Path "$([Environment]::GetFolderPath('Desktop'))\ScreenPlus.lnk")) { throw "no desktop shortcut" }
+          $p = Start-Process $app -ArgumentList '--help' -Wait -PassThru -NoNewWindow -RedirectStandardOutput help.txt
+          Get-Content help.txt
+          if ($p.ExitCode -ne 0) { throw "installed ScreenPlus exited with $($p.ExitCode)" }
+          $uninstaller = "$env:LOCALAPPDATA\Programs\ScreenPlus\unins000.exe"
+          $p = Start-Process $uninstaller -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          # The uninstaller hands off to a copy of itself; give it a moment to finish.
+          for ($i = 0; $i -lt 30 -and (Test-Path $app); $i++) { Start-Sleep 1 }
+          if (Test-Path $app) { throw "uninstall left ScreenPlus.exe behind" }
+          "installed, ran and uninstalled $(Split-Path $setup -Leaf) ($([math]::Round((Get-Item $setup).Length / 1MB)) MB)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ScreenPlus-Setup-${{ matrix.rid }}
+          path: dist/ScreenPlus-Setup-*.exe
+          if-no-files-found: error
+
       - uses: actions/upload-artifact@v4
         with:
           name: ScreenPlus-${{ matrix.rid }}
