@@ -11,7 +11,7 @@ Requires Windows 10 version 2004 (May 2020 Update) or later, or Windows 11, on x
 
 Every push builds a ready-to-run, self-contained `ScreenPlus.exe` (no .NET install needed). Open the
 repository's **Actions** tab, choose the latest **Windows** run, and download the **ScreenPlus-win-x64**
-(or **ScreenPlus-win-arm64**) artifact.
+(or **ScreenPlus-win-arm64**) artifact. GitHub only offers artifact downloads when you're signed in.
 
 The exe isn't code-signed, so Windows SmartScreen may say it "protected your PC" the first time. Click
 **More info → Run anyway**.

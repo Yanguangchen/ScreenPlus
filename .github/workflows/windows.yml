@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - "windows/**"
+      - "!windows/**/*.md"
       - "Resources/AppIcon.png"
       - ".github/workflows/windows.yml"
   pull_request:
     paths:
       - "windows/**"
+      - "!windows/**/*.md"
       - "Resources/AppIcon.png"
       - ".github/workflows/windows.yml"
   workflow_dispatch:
