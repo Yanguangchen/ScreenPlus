@@ -4,3 +4,11 @@ build/
 *.xcodeproj/
 DerivedData/
 .DS_Store
+
+# Windows version
+windows/**/bin/
+windows/**/obj/
+windows/dist/
+*.user
+.vs/
+TestResults/

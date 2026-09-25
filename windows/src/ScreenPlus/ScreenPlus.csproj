@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- Windows 10 2004 (build 19041) is the first with cursor-free screen capture. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <!-- Only for the notification-area icon while recording. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>ScreenPlus</AssemblyName>
+    <RootNamespace>ScreenPlus</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+    <!-- Program.Main handles the command-line tools before starting the app. -->
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <StartupObject>ScreenPlus.Program</StartupObject>
+    <!-- WPF0001: WPF's Fluent (Windows 11) theme is still marked experimental.
+         WFO0003: WinForms (only used for the tray icon) prefers its own DPI setting; the manifest's is for WPF. -->
+    <NoWarn>$(NoWarn);WPF0001;WFO0003</NoWarn>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WinForms is only used for NotifyIcon; keep its types out of the global namespace. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TerraFX.Interop.Windows" Version="10.0.26100.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ScreenPlus.Core\ScreenPlus.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\AppIcon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ScreenPlus.Windows.Tests" />
+  </ItemGroup>
+</Project>

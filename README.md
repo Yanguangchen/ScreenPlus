@@ -4,6 +4,9 @@ A Screen Studio–style screen recorder for macOS: it records your screen, then 
 zooms in where you're working, follows a smoothed cursor, zooms back out when you go idle, and adds
 motion blur.
 
+There's also a **Windows version** in [`windows/`](windows/README.md), with the same features and
+recording format.
+
 ## Build & run
 
 ```bash

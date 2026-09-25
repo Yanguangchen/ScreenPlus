@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ScreenPlus.Core/ScreenPlus.Core.csproj" />
+    <Project Path="src/ScreenPlus/ScreenPlus.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ScreenPlus.Core.Tests/ScreenPlus.Core.Tests.csproj" />
+    <Project Path="tests/ScreenPlus.Windows.Tests/ScreenPlus.Windows.Tests.csproj" />
+  </Folder>
+</Solution>
