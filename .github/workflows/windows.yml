@@ -59,15 +59,8 @@ jobs:
           Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture | Format-List
           "Media Foundation (mfplat.dll): $(Test-Path $env:WINDIR\System32\mfplat.dll)"
           "H.264 encoder (msmpeg2enc.dll): $(Test-Path $env:WINDIR\System32\msmpeg2enc.dll)"
+          # The UI and screen-capture tests need an interactive desktop, which hosted runners have.
           "Session: $([System.Diagnostics.Process]::GetCurrentProcess().SessionId), interactive: $([Environment]::UserInteractive)"
-
-      - name: Install Media Foundation if missing (Windows Server)
-        shell: pwsh
-        run: |
-          if (-not (Test-Path $env:WINDIR\System32\mfplat.dll) -and (Get-Command Install-WindowsFeature -ErrorAction SilentlyContinue)) {
-            Install-WindowsFeature Server-Media-Foundation | Format-List
-            "Media Foundation now: $(Test-Path $env:WINDIR\System32\mfplat.dll)"
-          }
 
       - name: Build
         working-directory: windows
@@ -99,19 +92,13 @@ jobs:
           Get-Content help.txt
           if ($p.ExitCode -ne 0) { throw "ScreenPlus --help exited with $($p.ExitCode)" }
 
-      # Temporary: the sandbox that develops this can't download artifacts, so print small screenshots.
-      - name: Print screenshot thumbnails
-        if: always() && matrix.rid == 'win-x64'
-        shell: pwsh
-        run: |
-          foreach ($file in Get-ChildItem test-output/thumbs -Filter *.jpg -ErrorAction SilentlyContinue) {
-            $name = $file.Name
-            $path = $file.FullName
-            $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($path))
-            "THUMB-BEGIN $name $($b64.Length)"
-            for ($i = 0; $i -lt $b64.Length; $i += 3000) { "THUMB " + $b64.Substring($i, [Math]::Min(3000, $b64.Length - $i)) }
-            "THUMB-END $name"
-          }
+          # Render one of the integration tests' recordings with the shipped exe.
+          $events = Get-ChildItem $env:TEMP -Directory -Filter 'screenplus-test-*' |
+            ForEach-Object { Join-Path $_.FullName 'events.json' } | Where-Object { Test-Path $_ } | Select-Object -First 1
+          $p = Start-Process -FilePath dist/ScreenPlus.exe -ArgumentList '--render', "`"$events`"", 'smoke.mp4' -Wait -PassThru -NoNewWindow -RedirectStandardOutput render.txt
+          Get-Content render.txt
+          if ($p.ExitCode -ne 0 -or -not (Test-Path smoke.mp4)) { throw "ScreenPlus --render exited with $($p.ExitCode)" }
+          "smoke.mp4: $((Get-Item smoke.mp4).Length) bytes"
 
       - uses: actions/upload-artifact@v4
         with:

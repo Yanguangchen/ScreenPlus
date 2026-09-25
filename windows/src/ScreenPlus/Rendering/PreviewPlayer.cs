@@ -27,8 +27,7 @@ internal sealed unsafe class PreviewPlayer : IDisposable
     private Exception? _openError;
 
     // Owned by the render thread.
-    private Mp4Reader? _reader;
-    private SourceFrames? _source;
+    private DecodeAhead? _decoder;
     private SoundTrack? _clicks, _keys;
     private AudioOutput? _audio;
     private long _lastIndex = -1;
@@ -220,10 +219,8 @@ internal sealed unsafe class PreviewPlayer : IDisposable
     {
         try
         {
-            // Media Foundation objects stay on the thread that uses them.
-            _reader = new Mp4Reader(_session.VideoPath);
-            _source = new SourceFrames(_reader);
-            Duration = Math.Max(0, _reader.Duration - _source.BaseTime);
+            _decoder = new DecodeAhead(_session.VideoPath);
+            Duration = _decoder.Duration;
             _clicks = new SoundTrack(InputSounds.ClickHits(_session), Duration);
             _keys = new SoundTrack(InputSounds.KeyHits(_session), Duration);
             _audio = AudioOutput.TryCreate();
@@ -268,7 +265,7 @@ internal sealed unsafe class PreviewPlayer : IDisposable
             {
                 try
                 {
-                    RenderFrame(composer, playing ? index / fps : t);
+                    RenderFrame(composer, playing ? index / fps : t, playing);
                     _lastIndex = index;
                     _lastComposer = composer;
                 }
@@ -289,14 +286,13 @@ internal sealed unsafe class PreviewPlayer : IDisposable
             }
         }
 
-        _source.Dispose();
-        _reader.Dispose();
+        _decoder.Dispose();
         _audio?.Dispose();
     }
 
-    private void RenderFrame(FrameComposer composer, double t)
+    private void RenderFrame(FrameComposer composer, double t, bool playing)
     {
-        var frame = FrameAt(t);
+        var frame = FrameAt(t, playing);
         if (frame == null) return;
         _lastFrame = frame;
 
@@ -319,18 +315,21 @@ internal sealed unsafe class PreviewPlayer : IDisposable
 
     private readonly ComposerScratch _scratch = new();
 
-    /// <summary>The source frame at <paramref name="t"/>; seeks instead of decoding everything when jumping around.</summary>
-    private VideoFrame? FrameAt(double t)
+    /// <summary>
+    /// The source frame at <paramref name="t"/>; seeks instead of decoding everything when jumping around.
+    /// While playing it never waits for the decoder, so a slow frame is skipped rather than stalling playback.
+    /// </summary>
+    private VideoFrame? FrameAt(double t, bool playing)
     {
         var current = _lastFrame;
         var jumpBack = current != null && t < current.Time - 0.001;
-        var jumpAhead = current != null && _source!.NextTime is { } next && t > next + 1.5;
+        var jumpAhead = current != null && t > current.Time + 1.5 && _decoder!.NewestTime < t - 1.5 && !_decoder.ReachedEnd;
         if (jumpBack || jumpAhead)
         {
-            _source!.Seek(t);
+            _decoder!.Seek(t);
             _lastFrame = null;
         }
-        return _source!.At(t);
+        return _decoder!.At(t, wait: !playing);
     }
 
     public void Dispose()

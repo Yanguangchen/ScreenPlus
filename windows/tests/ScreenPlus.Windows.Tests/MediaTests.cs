@@ -121,6 +121,22 @@ public unsafe class MediaTests(ITestOutputHelper output)
         Assert.InRange(source.At(2.5)!.Time, 1.9, 2.0);
     }
 
+    [Fact]
+    public void DecodesAheadAndSeeks()
+    {
+        var folder = SyntheticRecording.Create();
+        using var decoder = new DecodeAhead(Path.Combine(folder, "raw.mp4"));
+
+        Assert.InRange(decoder.Duration, 3.9, 4.1);
+        Assert.Equal(0, decoder.At(0, wait: true)!.Time, 3);
+        Assert.InRange(decoder.At(3.5, wait: true)!.Time, 3.48, 3.502);
+        decoder.Seek(1.0);
+        Assert.InRange(decoder.At(1.0, wait: true)!.Time, 0.96, 1.002);
+        Assert.InRange(decoder.At(2.5, wait: true)!.Time, 1.9, 2.0);  // the still second holds the last frame
+        Assert.InRange(decoder.At(10, wait: true)!.Time, 3.99, 4.01);  // past the end: the last frame
+        Assert.True(decoder.ReachedEnd);
+    }
+
     private static bool HasAudioTrack(string path)
     {
         MediaFoundation.Start();
