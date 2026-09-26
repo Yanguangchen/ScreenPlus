@@ -1,0 +1,126 @@
+name: Windows release
+
+# Publishes a GitHub Release with the Windows installers when a tag like windows-v0.1.0 is pushed:
+#   git tag windows-v0.1.0 && git push origin windows-v0.1.0
+# The tag must match <Version> in windows/Directory.Build.props. Pull requests that change this file get a
+# dry run: everything but publishing.
+on:
+  push:
+    tags:
+      - "windows-v*"
+  pull_request:
+    paths:
+      - ".github/workflows/windows-release.yml"
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: windows-11-arm
+            rid: win-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: windows/global.json
+
+      - name: Check the tag matches the app version
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        working-directory: windows
+        run: |
+          $version = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version
+          if ('${{ github.ref_name }}' -ne "windows-v$version") {
+            throw "Tag ${{ github.ref_name }} doesn't match <Version>$version</Version> in Directory.Build.props"
+          }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Build the installer and portable exe
+        shell: pwsh
+        run: |
+          windows/scripts/publish.ps1 -Runtime ${{ matrix.rid }} -Installer
+          $arch = '${{ matrix.rid }}' -replace '^win-', ''
+          # Names without the version, so releases/latest/download/<name> always gets the newest.
+          New-Item -ItemType Directory release | Out-Null
+          Move-Item windows/dist/ScreenPlus-Setup-*-$arch.exe release/ScreenPlus-Setup-$arch.exe
+          Move-Item windows/dist/${{ matrix.rid }}/ScreenPlus.exe release/ScreenPlus-Portable-$arch.exe
+
+      - name: Test the installer (install, run, uninstall)
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem release/ScreenPlus-Setup-*.exe).FullName
+          $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/LOG=install.log' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content install.log; throw "setup exited with $($p.ExitCode)" }
+          $app = "$env:LOCALAPPDATA\Programs\ScreenPlus\ScreenPlus.exe"
+          $p = Start-Process $app -ArgumentList '--help' -Wait -PassThru -NoNewWindow -RedirectStandardOutput help.txt
+          if ($p.ExitCode -ne 0) { throw "installed ScreenPlus exited with $($p.ExitCode)" }
+          Start-Process "$env:LOCALAPPDATA\Programs\ScreenPlus\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.rid }}
+          path: release/*.exe
+          if-no-files-found: error
+
+  release:
+    name: Publish the release
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # only this job can create the release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#windows-v}"
+          base="https://github.com/$GH_REPO/releases/download/$TAG"
+          cat > notes.md <<EOF
+          ## Download
+
+          | | Installer (recommended) | Portable (no install) |
+          |---|---|---|
+          | Most Windows PCs (Intel/AMD) | [ScreenPlus-Setup-x64.exe]($base/ScreenPlus-Setup-x64.exe) | [ScreenPlus-Portable-x64.exe]($base/ScreenPlus-Portable-x64.exe) |
+          | Windows on Arm (e.g. Snapdragon) | [ScreenPlus-Setup-arm64.exe]($base/ScreenPlus-Setup-arm64.exe) | [ScreenPlus-Portable-arm64.exe]($base/ScreenPlus-Portable-arm64.exe) |
+
+          Not sure which? Settings → System → About → **System type** says "x64-based" or "ARM-based".
+
+          Run the installer and follow the steps; no admin rights are needed. It isn't code-signed yet, so if
+          Windows says it "protected your PC", click **More info → Run anyway**. Requires Windows 10 version
+          2004 or later, or Windows 11.
+          EOF
+          ls -l release
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/*.exe --clobber
+          else
+            gh release create "$TAG" release/*.exe --verify-tag --title "ScreenPlus for Windows $version" \
+              --notes-file notes.md --generate-notes --latest
+          fi

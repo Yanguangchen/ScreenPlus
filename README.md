@@ -5,7 +5,8 @@ zooms in where you're working, follows a smoothed cursor, zooms back out when yo
 motion blur.
 
 There's also a **Windows version** in [`windows/`](windows/README.md), with the same features and
-recording format.
+recording format. [Download the Windows installer](https://github.com/Yanguangchen/ScreenPlus/releases/latest/download/ScreenPlus-Setup-x64.exe)
+(for Windows on Arm, get `ScreenPlus-Setup-arm64.exe` from the [latest release](https://github.com/Yanguangchen/ScreenPlus/releases/latest)).
 
 ## Build & run
 
