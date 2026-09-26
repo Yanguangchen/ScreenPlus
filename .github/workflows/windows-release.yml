@@ -57,12 +57,13 @@ jobs:
       - name: Build the installer and portable exe
         shell: pwsh
         run: |
-          windows/scripts/publish.ps1 -Runtime ${{ matrix.rid }} -Installer
+          $root = $env:GITHUB_WORKSPACE
+          & "$root/windows/scripts/publish.ps1" -Runtime ${{ matrix.rid }} -Installer  # changes directory
           $arch = '${{ matrix.rid }}' -replace '^win-', ''
           # Names without the version, so releases/latest/download/<name> always gets the newest.
-          New-Item -ItemType Directory release | Out-Null
-          Move-Item windows/dist/ScreenPlus-Setup-*-$arch.exe release/ScreenPlus-Setup-$arch.exe
-          Move-Item windows/dist/${{ matrix.rid }}/ScreenPlus.exe release/ScreenPlus-Portable-$arch.exe
+          New-Item -ItemType Directory "$root/release" | Out-Null
+          Move-Item "$root/windows/dist/ScreenPlus-Setup-*-$arch.exe" "$root/release/ScreenPlus-Setup-$arch.exe"
+          Move-Item "$root/windows/dist/${{ matrix.rid }}/ScreenPlus.exe" "$root/release/ScreenPlus-Portable-$arch.exe"
 
       - name: Test the installer (install, run, uninstall)
         shell: pwsh
