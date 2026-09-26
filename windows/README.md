@@ -9,19 +9,26 @@ Requires Windows 10 version 2004 (May 2020 Update) or later, or Windows 11, on x
 
 ## Download
 
-Every push builds a **setup program** and a **portable exe**. Open the repository's **Actions** tab, choose
-the latest **Windows** run, and download one of these artifacts (GitHub only offers downloads when you're
-signed in):
+Get it from the [latest release](https://github.com/Yanguangchen/ScreenPlus/releases/latest). No GitHub account
+is needed. These links always point to the newest version:
 
-- **ScreenPlus-Setup-win-x64** (or **-win-arm64** for Windows on Arm): `ScreenPlus-Setup-<version>-x64.exe`
-  installs ScreenPlus for your account (no admin rights needed; the first page also offers "all users"),
-  adds it to the Start menu and optionally the desktop, and registers an uninstaller under
-  Settings → Apps. Running a newer setup upgrades an existing install.
-- **ScreenPlus-win-x64** (or **-win-arm64**): a single self-contained `ScreenPlus.exe` that runs from
-  anywhere without installing.
+| | Installer (recommended) | Portable (no install) |
+|---|---|---|
+| Most Windows PCs (Intel/AMD) | [ScreenPlus-Setup-x64.exe](https://github.com/Yanguangchen/ScreenPlus/releases/latest/download/ScreenPlus-Setup-x64.exe) | [ScreenPlus-Portable-x64.exe](https://github.com/Yanguangchen/ScreenPlus/releases/latest/download/ScreenPlus-Portable-x64.exe) |
+| Windows on Arm (e.g. Snapdragon) | [ScreenPlus-Setup-arm64.exe](https://github.com/Yanguangchen/ScreenPlus/releases/latest/download/ScreenPlus-Setup-arm64.exe) | [ScreenPlus-Portable-arm64.exe](https://github.com/Yanguangchen/ScreenPlus/releases/latest/download/ScreenPlus-Portable-arm64.exe) |
+
+Not sure which one you need? Settings → System → About → **System type** says "x64-based" or "ARM-based".
+
+The installer sets ScreenPlus up for your account (no admin rights needed; the first page also offers
+"all users"). It adds ScreenPlus to the Start menu, and to the desktop if you choose, and registers an
+uninstaller under Settings → Apps. Running a newer setup upgrades an existing install. The portable exe
+runs from anywhere without installing.
 
 Neither is code-signed yet, so Windows SmartScreen may say it "protected your PC" the first time. Click
 **More info → Run anyway**.
+
+Every push also builds test versions, which signed-in users can download from the **Actions** tab. They
+expire after 90 days.
 
 ## Build & run
 
@@ -35,7 +42,18 @@ dotnet run --project src/ScreenPlus          # build and start
 ```
 
 The installer needs [Inno Setup 6.3+](https://jrsoftware.org/isdl.php) (`winget install JRSoftware.InnoSetup`);
-its script is `installer/ScreenPlus.iss`. To release a new version, bump `<Version>` in `Directory.Build.props`.
+its script is `installer/ScreenPlus.iss`.
+
+To publish a release, bump `<Version>` in `Directory.Build.props`, merge that to `main`, then tag the commit.
+For example, for version 0.2.0:
+
+```powershell
+git tag windows-v0.2.0
+git push origin windows-v0.2.0
+```
+
+The **Windows release** workflow then builds and tests both installers and the portable exes, and publishes
+them as a GitHub Release. The tag has to match `<Version>`, or the workflow stops.
 
 Visual Studio or Rider can open `ScreenPlus.Windows.slnx`.
 
