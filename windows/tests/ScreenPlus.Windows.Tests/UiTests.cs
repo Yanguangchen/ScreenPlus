@@ -97,8 +97,10 @@ public class UiTests(ITestOutputHelper output)
         _dark = false;
 
         RecordThroughTheToolbar(model, main, toolbar);
+        output.WriteLine("recording flow done; shutting down");
 
         model.Shutdown();
+        output.WriteLine("model shut down");
         toolbar.Close();
         main.Close();
         output.WriteLine($"saved UI pictures to {SyntheticRecording.ArtifactDirectory}");
@@ -145,8 +147,10 @@ public class UiTests(ITestOutputHelper output)
         Assert.True(File.Exists(session.VideoPath));
         Pump(1.0);
         Save(main, "ui-editor-recording.png");
+        output.WriteLine("saved the editor after recording; closing it");
 
         model.CloseEditor();  // releases the video file
+        output.WriteLine("closed the editor");
         foreach (var folder in Directory.GetDirectories(AppModel.RecordingsRoot).Where(f => !existing.Contains(f)))
         {
             try { Directory.Delete(folder, recursive: true); } catch (IOException) { }

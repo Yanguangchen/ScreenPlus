@@ -367,7 +367,13 @@ internal sealed unsafe class PreviewPlayer : IDisposable
             LowerTimerLocked();
         }
         _wake.Set();
-        _thread.Join();
+        // Closing the editor must never freeze the app. If the render thread is stuck (say, in a driver
+        // call), leave it and its memory alone rather than wait on it forever.
+        if (!_thread.Join(TimeSpan.FromSeconds(5)))
+        {
+            Trace.WriteLine("ScreenPlus: the preview thread didn't stop; leaving it behind");
+            return;
+        }
         lock (_lock)
         {
             _composer?.Dispose();
